@@ -40,15 +40,12 @@ public class MongoDBRepository {
 
     public CompletionStage<List<YearAndUniverseStat>> countByYearAndUniverse() {
 
-        Document match = Document.parse("{$match: {\"identity.yearAppearance\": {\"$ne\": \"\"}}}");
-        Document group1 = Document.parse(" { $group: {_id: { yearAppearance: \"$identity.yearAppearance\", universe: \"$identity.universe\"},count: {$sum: 1} } }");
-        Document group2 = Document.parse("{ $group: {_id: { yearAppearance: \"$_id.yearAppearance\"},byUniverse: {$push: {universe: \"$_id.universe\", count: \"$count\"}}}}");
-        Document sort = Document.parse("{$sort: {\"_id.yearAppearance\": 1}}");
+
         List<Document> pipeline = new ArrayList<>();
-        pipeline.add(match);
-        pipeline.add(group1);
-        pipeline.add(group2);
-        pipeline.add(sort);
+        pipeline.add(Document.parse("{$match: {\"identity.yearAppearance\": {\"$ne\": \"\"}}}")); //match
+        pipeline.add(Document.parse(" { $group: {_id: { yearAppearance: \"$identity.yearAppearance\", universe: \"$identity.universe\"},count: {$sum: 1} } }")); //group
+        pipeline.add(Document.parse("{ $group: {_id: { yearAppearance: \"$_id.yearAppearance\"},byUniverse: {$push: {universe: \"$_id.universe\", count: \"$count\"}}}}")); //group
+        pipeline.add(Document.parse("{$sort: {\"_id.yearAppearance\": 1}}")); //sort
         return ReactiveStreamsUtils.fromMultiPublisher(heroesCollection.aggregate(pipeline))
                 .thenApply(documents -> {
                     return documents.stream()
@@ -73,29 +70,24 @@ public class MongoDBRepository {
     public CompletionStage<List<ItemCount>> topPowers(int top) {
 
         List<Document> pipeline = new ArrayList<>();
-        Document unwind = Document.parse("{$unwind: \"$powers\"}");
-        Document match = Document.parse("{$match: {\"powers\": {\"$ne\": \"\"}}}");
-        Document group = Document.parse("{$group: {_id: \"$powers\", count: {$sum: 1}}}");
-        Document sort = Document.parse("{$sort: {count: -1}}");
-        Document limit = Document.parse("{$limit: " + top + "}");
 
-        pipeline.add(unwind);
-        pipeline.add(match);
-        pipeline.add(group);
-        pipeline.add(sort);
-        pipeline.add(limit);
+        pipeline.add(Document.parse("{$unwind: \"$powers\"}")); //unwind
+        pipeline.add(Document.parse("{$match: {\"powers\": {\"$ne\": \"\"}}}")); //match
+        pipeline.add(Document.parse("{$group: {_id: \"$powers\", count: {$sum: 1}}}")); //group
+        pipeline.add(Document.parse("{$sort: {count: -1}}")); //sort
+        pipeline.add(Document.parse("{$limit: " + top + "}")); //limit
 
 
         return ReactiveStreamsUtils.fromMultiPublisher(heroesCollection.aggregate(pipeline))
-                .thenApply(documents -> {
-                    return documents.stream()
+                .thenApply(documents ->
+                    documents.stream()
                             .map(Document::toJson)
                             .map(Json::parse)
-                            .map(jsonNode -> {
-                                return new ItemCount(jsonNode.findPath("_id").asText(), jsonNode.findPath("count").asInt());
-                            })
-                            .collect(Collectors.toList());
-                });
+                            .map(jsonNode ->
+                                new ItemCount(jsonNode.findPath("_id").asText(), jsonNode.findPath("count").asInt())
+                            )
+                            .collect(Collectors.toList())
+                );
     }
 
     public CompletionStage<List<ItemCount>> byUniverse() {
@@ -103,15 +95,15 @@ public class MongoDBRepository {
         Document group = Document.parse("{$group: {_id: \"$identity.universe\", count: {$sum: 1}}}");
         pipeline.add(group);
         return ReactiveStreamsUtils.fromMultiPublisher(heroesCollection.aggregate(pipeline))
-                .thenApply(documents -> {
-                    return documents.stream()
+                .thenApply(documents ->
+                     documents.stream()
                             .map(Document::toJson)
                             .map(Json::parse)
-                            .map(jsonNode -> {
-                                return new ItemCount(jsonNode.findPath("_id").asText(), jsonNode.findPath("count").asInt());
-                            })
-                            .collect(Collectors.toList());
-                });
+                            .map(jsonNode ->
+                                 new ItemCount(jsonNode.findPath("_id").asText(), jsonNode.findPath("count").asInt())
+                            )
+                            .collect(Collectors.toList())
+                );
     }
 
 }

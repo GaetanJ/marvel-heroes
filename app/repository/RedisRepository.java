@@ -16,6 +16,7 @@ import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Collectors;
 
 @Singleton
 public class RedisRepository {
@@ -68,14 +69,9 @@ public class RedisRepository {
 
         StatefulRedisConnection<String, String> connection = redisClient.connect();
 
-        return connection.async().zrevrange("last_heroes", 0, count - 1).thenApply(res -> {
-            List<StatItem> lastHeroes = new ArrayList<>();
-            for (String tuple : res) {
-                lastHeroes.add(StatItem.fromJson(tuple));
-            }
-
-            return lastHeroes;
-        });
+        return connection.async().zrevrange("last_heroes", 0, count - 1).thenApply(res ->
+                res.stream().map(tuple -> StatItem.fromJson(tuple)).collect(Collectors.toList())
+        );
     }
 
     public CompletionStage<List<TopStatItem>> topHeroesVisited(int count) {
@@ -83,14 +79,14 @@ public class RedisRepository {
 
         StatefulRedisConnection<String, String> connection = redisClient.connect();
 
-        return connection.async().zrevrangeWithScores("tops_heroes", 0, count - 1).thenApply(res -> {
-            List<TopStatItem> topHeroes = new ArrayList<>();
-            for (ScoredValue<String> tuple : res) {
-                topHeroes.add(new TopStatItem(StatItem.fromJson(tuple.getValue()), Double.valueOf(tuple.getScore()).longValue()));
-            }
+        List<TopStatItem> topHeroes = new ArrayList<>();
 
-            return topHeroes;
-        });
+        return connection.async().zrevrangeWithScores("tops_heroes", 0, count - 1)
+                .thenApply(res ->
+                        res.stream()
+                                .map(tuple -> new TopStatItem(StatItem.fromJson(tuple.getValue()), Double.valueOf(tuple.getScore()).longValue()))
+                                .collect(Collectors.toList())
+                );
 
     }
 }

@@ -9,6 +9,7 @@ import models.PaginatedResults;
 import models.SearchedHero;
 import play.libs.Json;
 import play.libs.ws.WSClient;
+import play.libs.ws.WSResponse;
 import utils.SearchedHeroSamples;
 
 import javax.inject.Inject;
@@ -39,23 +40,28 @@ public class ElasticRepository {
                         "    \"size\" : "+size+",\n" +
                         "    \"query\" : {\n" +
                         "        \"query_string\": {\n" +
-                        "          \"query\": \""+input+"~\",\n" +
+                        "          \"query\": \""+(input.equals("") ? "*" : input +"~") + "\",\n" +
                         "\"fields\":  [ \"name^4\", \"aliases^3\", \"secretIdentities^3\", \"description^2\", \"partners^1\"]" +
                         "        }\n" +
                         "    }\n" +
                         "}"))
                 .thenApply(response -> {
-                    ArrayList<SearchedHero> heroes = new ArrayList<>();
-                    JsonNode hits = Json.parse(response.getBody()).get("hits").get("hits");
-
-                    for (int i = 0; i < hits.size(); i++) {
-                        JsonNode source = hits.get(i).get("_source");
-                        ((ObjectNode)source).put("id",hits.get(i).get("_id") );
-                        SearchedHero shero = SearchedHero.fromJson(source);
-                        heroes.add(shero);
-                    }
+                    ArrayList<SearchedHero> heroes = hitsToHeroes(response);
                     return new PaginatedResults<>(heroes.size(), page, Math.round(Json.parse(response.getBody()).get("hits").get("total").get("value").asInt()/size), heroes);
                 });
+    }
+
+    private ArrayList<SearchedHero> hitsToHeroes(WSResponse response) {
+        ArrayList<SearchedHero> heroes = new ArrayList<>();
+        JsonNode hits = Json.parse(response.getBody()).get("hits").get("hits");
+
+        for (int i = 0; i < hits.size(); i++) {
+            JsonNode source = hits.get(i).get("_source");
+            ((ObjectNode) source).put("id", hits.get(i).get("_id"));
+            SearchedHero shero = SearchedHero.fromJson(source);
+            heroes.add(shero);
+        }
+        return heroes;
     }
 
     public CompletionStage<List<SearchedHero>> suggest(String input) {
@@ -65,21 +71,13 @@ public class ElasticRepository {
                         "    \"size\" : 5,\n" +
                         "    \"query\" : {\n" +
                         "        \"query_string\": {\n" +
-                        "          \"query\": \""+input+"*\",\n" +
+                        "          \"query\": \""+input+"~\",\n" +
                         "\"fields\":  [ \"name^2\", \"aliases\", \"secretIdentities\"]" +
                         "        }\n" +
                         "    }\n" +
                         "}"))
                 .thenApply(response -> {
-                    ArrayList<SearchedHero> heroes = new ArrayList<>();
-                    JsonNode hits = Json.parse(response.getBody()).get("hits").get("hits");
-
-                    for (int i = 0; i < hits.size(); i++) {
-                        JsonNode source = hits.get(i).get("_source");
-                        ((ObjectNode)source).put("id",hits.get(i).get("_id") );
-                        SearchedHero shero = SearchedHero.fromJson(source);
-                        heroes.add(shero);
-                    }
+                    ArrayList<SearchedHero> heroes = hitsToHeroes(response);
                     return heroes;
                 });
     }
