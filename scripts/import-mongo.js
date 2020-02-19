@@ -46,12 +46,12 @@ const insertHeroes = (db, callback) => {
           universe: data.universe
         },
         skills: {
-          intelligence: data.intelligence,
-          strength: data.strength,
-          speed: data.speed,
-          durability: data.durability,
-          combat: data.combat,
-          power: data.power
+          intelligence: Math.round(data.intelligence),
+          strength: Math.round(data.strength),
+          speed: Math.round(data.speed),
+          durability: Math.round(data.durability),
+          combat: Math.round(data.combat),
+          power: Math.round(data.power)
         }
       };
 
